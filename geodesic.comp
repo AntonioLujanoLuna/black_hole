@@ -115,8 +115,8 @@ bool crossesEquatorialPlane(vec3 oldPos, vec3 newPos) {
 }
 
 void main() {
-    int WIDTH  = cam.moving ? 200 : 200;
-    int HEIGHT = cam.moving ? 150 : 150;
+    int WIDTH  = cam.moving ? 100 : 200;
+    int HEIGHT = cam.moving ? 75 : 150;
 
     ivec2 pix = ivec2(gl_GlobalInvocationID.xy);
     if (pix.x >= WIDTH || pix.y >= HEIGHT) return;
@@ -135,13 +135,15 @@ void main() {
     bool hitDisk      = false;
     bool hitObject    = false;
 
-    int steps = cam.moving ? 2000 : 5000;
+    float distanceFactor = length(cam.camPos) / 6.34194e10; // Normalized to default camera distance
+    int steps = cam.moving ? 2000 : int(5000.0 * sqrt(distanceFactor));
 
     for (int i = 0; i < steps; ++i) {
         if (intercept(ray, SagA_rs)) { hitBlackHole = true; break; }
         
         // Early exit if ray is clearly escaping (far away and moving outward)
-        if (ray.r > 1e13 && ray.dr > 0.0) break;
+        float escapeThreshold = max(1e13, length(cam.camPos) * 2.0);
+        if (ray.r > escapeThreshold && ray.dr > 0.0) break;
         
         rk4Step(ray, D_LAMBDA);
         lambda += D_LAMBDA;

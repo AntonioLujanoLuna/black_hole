@@ -27,6 +27,8 @@ double c = 299792458.0;
 double G = 6.67430e-11;
 struct Ray;
 bool Gravity = false;
+struct Engine;
+void ToggleFullscreen();
 
 struct Camera {
     // Center the camera orbit on the black hole at (0, 0, 0)
@@ -114,6 +116,9 @@ struct Camera {
         if (action == GLFW_PRESS && key == GLFW_KEY_G) {
             Gravity = !Gravity;
             cout << "[INFO] Gravity turned " << (Gravity ? "ON" : "OFF") << endl;
+        }
+        if (action == GLFW_PRESS && key == GLFW_KEY_F11) {
+            ToggleFullscreen();
         }
     }
 };
@@ -462,20 +467,17 @@ struct Engine {
         return prog;
     }
     void dispatchCompute(const Camera& cam) {
-        // determine target compute‐res
-        int cw = cam.moving ? COMPUTE_WIDTH  : 200;
+        static int lastCW = -1, lastCH = -1;
+        int cw = cam.moving ? COMPUTE_WIDTH : 200;
         int ch = cam.moving ? COMPUTE_HEIGHT : 150;
-
-        // 1) reallocate the texture if needed
-        glBindTexture(GL_TEXTURE_2D, texture);
-        glTexImage2D(GL_TEXTURE_2D,
-                    0,                // mip
-                    GL_RGBA8,         // internal format
-                    cw,               // width
-                    ch,               // height
-                    0, GL_RGBA, 
-                    GL_UNSIGNED_BYTE, 
-                    nullptr);
+    
+        // Only reallocate if resolution changed
+        if (cw != lastCW || ch != lastCH) {
+            glBindTexture(GL_TEXTURE_2D, texture);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, cw, ch, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+            lastCW = cw;
+            lastCH = ch;
+        }
 
         // 2) bind compute program & UBOs
         glUseProgram(computeProgram);
@@ -598,6 +600,38 @@ struct Engine {
         vector<GLuint> VAOtexture = {VAO, texture};
         return VAOtexture;
     }
+    void toggleFullscreen() {
+        static bool isFullscreen = false;
+        static int windowedX, windowedY, windowedWidth, windowedHeight;
+        
+        if (!isFullscreen) {
+            // Save windowed position and size
+            glfwGetWindowPos(window, &windowedX, &windowedY);
+            glfwGetWindowSize(window, &windowedWidth, &windowedHeight);
+            
+            // Get primary monitor and its video mode
+            GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+            const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+            
+            // Switch to fullscreen
+            glfwSetWindowMonitor(window, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
+            WIDTH = mode->width;
+            HEIGHT = mode->height;
+            isFullscreen = true;
+            
+            cout << "[INFO] Fullscreen enabled: " << WIDTH << "x" << HEIGHT << endl;
+        } else {
+            // Restore windowed mode
+            glfwSetWindowMonitor(window, nullptr, windowedX, windowedY, windowedWidth, windowedHeight, 0);
+            WIDTH = windowedWidth;
+            HEIGHT = windowedHeight;
+            isFullscreen = false;
+            
+            cout << "[INFO] Windowed mode: " << WIDTH << "x" << HEIGHT << endl;
+        }
+        
+        glViewport(0, 0, WIDTH, HEIGHT);
+    }
     void renderScene() {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glUseProgram(shaderProgram);
@@ -611,6 +645,9 @@ struct Engine {
     };
 };
 Engine engine;
+void ToggleFullscreen() {
+    engine.toggleFullscreen();
+}
 void setupCameraCallbacks(GLFWwindow* window) {
     glfwSetWindowUserPointer(window, &camera);
 
@@ -686,7 +723,8 @@ int main() {
                 }
             }
             // Check if this object moved significantly
-            if (Gravity && distance(oldPos, vec3(obj.posRadius)) > 1e8f) {
+            vec3 newPos = vec3(obj.posRadius);
+            if (Gravity && glm::distance(oldPos, newPos) > 1e8f) {
                 objectsMoved = true;
             }
         }
@@ -698,7 +736,8 @@ int main() {
         }
         
         mat4 view = lookAt(camera.position(), camera.target, vec3(0,1,0));
-        mat4 proj = perspective(radians(60.0f), float(engine.COMPUTE_WIDTH)/engine.COMPUTE_HEIGHT, 1e9f, 1e14f);
+        mat4 proj = perspective(radians(60.0f), 
+        float(engine.WIDTH)/engine.HEIGHT, 1e9f, 1e14f);        
         mat4 viewProj = proj * view;
         engine.drawGrid(viewProj);
 
