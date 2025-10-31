@@ -258,8 +258,11 @@ struct Engine {
 
                     // prevent sqrt of negative or divide-by-zero (inside or at the black hole center)
                     if (dist > r_s) {
-                        double deltaY = 2.0 * sqrt(r_s * (dist - r_s));
-                        y += static_cast<float>(deltaY) - 3e10f;
+                        double arg = r_s * (dist - r_s);
+                        if (arg > 0) {
+                            double deltaY = 2.0 * sqrt(arg);
+                            y += static_cast<float>(deltaY) - 3e10f;
+                        }
                     } else {
                         // 🔴 For points inside or at r_s: make it dip down sharply
                         y += 2.0f * static_cast<float>(sqrt(r_s * r_s)) - 3e10f;  // or add a deep pit
@@ -712,13 +715,13 @@ int main() {
                     double acc1 = Gforce / obj.mass;
                     std::vector<double> acc = {direction[0] * acc1, direction[1] * acc1, direction[2] * acc1};
                     if (Gravity) {
-                        obj.velocity.x += acc[0];
-                        obj.velocity.y += acc[1];
-                        obj.velocity.z += acc[2];
+                        obj.velocity.x += acc[0] * dt;
+                        obj.velocity.y += acc[1] * dt;
+                        obj.velocity.z += acc[2] * dt;
 
-                        obj.posRadius.x += obj.velocity.x;
-                        obj.posRadius.y += obj.velocity.y;
-                        obj.posRadius.z += obj.velocity.z;
+                        obj.posRadius.x += obj.velocity.x * dt;
+                        obj.posRadius.y += obj.velocity.y * dt;
+                        obj.posRadius.z += obj.velocity.z * dt;
                     }
                 }
             }

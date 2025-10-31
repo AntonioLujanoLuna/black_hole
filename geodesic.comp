@@ -29,7 +29,7 @@ layout(std140, binding = 3) uniform Objects {
 
 const float SagA_rs = 1.269e10;
 const float D_LAMBDA = 5e7;
-const double ESCAPE_R = 1e30;
+const float ESCAPE_R = 1e30;
 
 // Globals to store hit info
 vec4 objectColor = vec4(0.0);
@@ -94,16 +94,50 @@ void geodesicRHS(Ray ray, out vec3 d1, out vec3 d2) {
     d2.z = -2.0*dr*dphi/r - 2.0*cos(theta)/(sin(theta)) * dtheta * dphi;
 }
 void rk4Step(inout Ray ray, float dL) {
-    vec3 k1a, k1b;
+    vec3 k1a, k1b, k2a, k2b, k3a, k3b, k4a, k4b;
+    Ray tempRay;
+    
+    // k1
     geodesicRHS(ray, k1a, k1b);
-
-    ray.r      += dL * k1a.x;
-    ray.theta  += dL * k1a.y;
-    ray.phi    += dL * k1a.z;
-    ray.dr     += dL * k1b.x;
-    ray.dtheta += dL * k1b.y;
-    ray.dphi   += dL * k1b.z;
-
+    
+    // k2
+    tempRay = ray;
+    tempRay.r += 0.5 * dL * k1a.x;
+    tempRay.theta += 0.5 * dL * k1a.y;
+    tempRay.phi += 0.5 * dL * k1a.z;
+    tempRay.dr += 0.5 * dL * k1b.x;
+    tempRay.dtheta += 0.5 * dL * k1b.y;
+    tempRay.dphi += 0.5 * dL * k1b.z;
+    geodesicRHS(tempRay, k2a, k2b);
+    
+    // k3
+    tempRay = ray;
+    tempRay.r += 0.5 * dL * k2a.x;
+    tempRay.theta += 0.5 * dL * k2a.y;
+    tempRay.phi += 0.5 * dL * k2a.z;
+    tempRay.dr += 0.5 * dL * k2b.x;
+    tempRay.dtheta += 0.5 * dL * k2b.y;
+    tempRay.dphi += 0.5 * dL * k2b.z;
+    geodesicRHS(tempRay, k3a, k3b);
+    
+    // k4
+    tempRay = ray;
+    tempRay.r += dL * k3a.x;
+    tempRay.theta += dL * k3a.y;
+    tempRay.phi += dL * k3a.z;
+    tempRay.dr += dL * k3b.x;
+    tempRay.dtheta += dL * k3b.y;
+    tempRay.dphi += dL * k3b.z;
+    geodesicRHS(tempRay, k4a, k4b);
+    
+    // Combine
+    ray.r += (dL/6.0) * (k1a.x + 2.0*k2a.x + 2.0*k3a.x + k4a.x);
+    ray.theta += (dL/6.0) * (k1a.y + 2.0*k2a.y + 2.0*k3a.y + k4a.y);
+    ray.phi += (dL/6.0) * (k1a.z + 2.0*k2a.z + 2.0*k3a.z + k4a.z);
+    ray.dr += (dL/6.0) * (k1b.x + 2.0*k2b.x + 2.0*k3b.x + k4b.x);
+    ray.dtheta += (dL/6.0) * (k1b.y + 2.0*k2b.y + 2.0*k3b.y + k4b.y);
+    ray.dphi += (dL/6.0) * (k1b.z + 2.0*k2b.z + 2.0*k3b.z + k4b.z);
+    
     ray.x = ray.r * sin(ray.theta) * cos(ray.phi);
     ray.y = ray.r * sin(ray.theta) * sin(ray.phi);
     ray.z = ray.r * cos(ray.theta);
