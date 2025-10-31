@@ -466,31 +466,3 @@ int main() {
     glfwTerminate();
     return 0;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        // 2) FPS counting
-        // framesCount++;
-        // auto t1 = Clock::now();
-        // double now = std::chrono::duration<double>(t1.time_since_epoch()).count();
-        // if (now - lastPrintTime >= 1.0) {
-        //     cout << "FPS: " << framesCount / (now - lastPrintTime) << "\n";
-        //     framesCount   = 0;
-        //     lastPrintTime = now;
-        // }
-        //raytrace(pixels, engine.WIDTH, engine.HEIGHT);

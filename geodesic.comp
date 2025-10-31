@@ -28,7 +28,7 @@ layout(std140, binding = 3) uniform Objects {
 };
 
 const float SagA_rs = 1.269e10;
-const float D_LAMBDA = 1e7;
+const float D_LAMBDA = 5e7;
 const double ESCAPE_R = 1e30;
 
 // Globals to store hit info
@@ -135,10 +135,14 @@ void main() {
     bool hitDisk      = false;
     bool hitObject    = false;
 
-    int steps = cam.moving ? 60000 : 60000;
+    int steps = cam.moving ? 2000 : 5000;
 
     for (int i = 0; i < steps; ++i) {
         if (intercept(ray, SagA_rs)) { hitBlackHole = true; break; }
+        
+        // Early exit if ray is clearly escaping (far away and moving outward)
+        if (ray.r > 1e13 && ray.dr > 0.0) break;
+        
         rk4Step(ray, D_LAMBDA);
         lambda += D_LAMBDA;
 
